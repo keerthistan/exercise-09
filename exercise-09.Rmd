@@ -1,0 +1,337 @@
+---
+title: "Exerxie-09"
+output: html_document
+---
+Keerthana (Keerthi) Stanley
+
+
+STEP 1:
+
+
+part 1-
+Using the {tidyverse} read_csv() function, load the “Street_et_al_2017.csv” dataset from this URL as a “tibble” named d.
+
+part 2-
+Do a quick exploratory data analysis for each quantitative variable where you generate the five-number summary:
+  median
+  minimum
+  maximum
+  1st and 3rd quartile values
+  mean
+  standard deviation
+
+
+**** use skim() function from the package {skimr} 
+
+
+part 1:
+```{r}
+library(tidyverse)
+
+f <- "https://raw.githubusercontent.com/difiore/ada-2024-datasets/main/Street_et_al_2017.csv"
+
+d <- read_csv(f, col_names = TRUE)
+```
+R documentation for the using the skimr package to generate statistics for different data structures:
+https://cran.r-project.org/web/packages/skimr/vignettes/skimr.html
+
+```{r}
+library(skimr)
+
+d_sumstats <- skim(d)
+
+```
+
+in the resulting data structure:
+
+minimum = p0 values
+maximum = p100 values
+1st quartile/Q1 = p25
+3rd quartile/Q3 = p75
+median = p50
+and of course, mean and sd are explicitly listed
+
+
+----------------------------------------------------
+
+
+STEP 2:
+
+From this dataset, plot brain size (ECV) AS A FUNCTION OF social group size (Group_size), longevity (Longevity), juvenile period length (Weaning), and reproductive lifespan (Repro_lifespan).
+
+
+- by saying ECV is a function of the other variables, we essentially make it the dependent variable (y)
+
+
+
+```{r}
+# easy plotting as shown in Module 18, using base R
+
+# ECV as a function of...
+
+# ...Group Size
+plot(data = d, ECV ~ Group_size)
+
+# ...Longevity
+plot(data = d, ECV ~ Longevity)
+
+
+# ...Weaning (juvenile period length)
+plot(data = d, ECV ~ Weaning)
+
+# ...Reproductive Lifespan
+plot(data = d, ECV ~ Repro_lifespan)
+
+
+```
+
+
+------------------------------------
+
+STEP 3:
+
+
+BY HAND, derive the ordinary least squares regression coefficients for coefficients B1 and B0 for ECV as a function of social group size (Group_size)
+
+
+HINT: You will need to remove rows from your dataset where one of these variables is missing.
+
+
+```{r}
+# d_filtered filters out observations with missing data for either ECV or Group size
+d_filtered <- d %>% filter(!is.na(ECV) & !is.na(Group_size))
+```
+
+Steps to VISUALLY finding B1 (the coefficient/slope) by hand (following Module 18):
+
+1. center each variable by subtracting from the mean
+
+```{r}
+d_filtered <- mutate(d_filtered, centered_ECV = ECV - mean(ECV))
+d_filtered <- mutate(d_filtered, centered_Group_size = Group_size - mean(Group_size))
+
+(p1 <- ggplot(data = d_filtered, aes(x = Group_size, y = ECV)) + geom_point())
+(p2 <- ggplot(data = d_filtered, aes(x = centered_Group_size, y = ECV)) + geom_point())
+
+```
+
+
+
+
+2. then minimize this with a custom slope test function:
+```{r}
+slope.test <- function(beta1, data) {
+    g <- ggplot(data = d_filtered, aes(x = centered_Group_size, y = centered_ECV))
+    g <- g + geom_point()
+    g <- g + geom_abline(intercept = 0, slope = beta1, size = 1, colour = "blue",
+        alpha = 1/2)
+    ols <- sum((d_filtered$centered_ECV - beta1 * d_filtered$centered_Group_size)^2)
+    g <- g + ggtitle(paste("Slope = ", beta1, "\nSum of Squared Deviations = ", round(ols,
+        3)))
+    g
+}
+```
+
+
+use manipulate package to pass in the function created and move B1 value
+```{r}
+# commenting this out, because the file does not knit otherwise
+
+# library(manipulate)
+# manipulate(slope.test(beta1, data = d_filtered), beta1 = slider(-1, 1, initial = 0, step = 0.005))
+```
+this allows us to manually adjust the slope(B1) of the line to best fit the data
+
+
+however, we can also use a simple formula to calculate B1 and B0 by hand
+
+```{r}
+# Calculate the slope (beta1) of the regression line
+beta_1 <- cov(d_filtered$Group_size, d_filtered$ECV) / var(d_filtered$Group_size)
+
+# Print the calculated slope
+print(beta_1)
+```
+
+thus we get a single, clear value for B1, 2.463071
+
+then we can calculate B0, essentially just plugging it back into the orginal regression model
+```{r}
+(beta_0 <- mean(d_filtered$ECV) - beta_1 * mean(d_filtered$Group_size))
+```
+
+thus we get B0 = 30.35652
+
+_____________________________________________________
+STEP 4:
+
+Confirm that you get the same results using the lm() function.
+
+lm() is the linear model function that simplifies the above steps
+
+```{r}
+m <- lm(ECV ~ Group_size, data = d_filtered)
+m
+```
+here I can confirm that I am getting the same values for B0 and B1 that I did manually!
+
+
+--------------------------------------
+STEP 5:
+
+Repeat the analysis above for three different major radiations of primates - “catarrhines”, “platyrrhines”, and “strepsirhines”) separately. These are stored in the variable Taxonomic_group. 
+
+
+QUESTIONS:
+  - Do your regression coefficients differ among groups? 
+  - How might you determine this?
+
+ANSWERS:
+  - I found the regression coefficients (B1) for each group using the lm() function, as shown in the previous step, and noticed that the coefficient/slope values ARE, in fact, slightly different for each group.
+  - when plotting the Group_size and ECV relationships, the trend also looked different based on the group
+  - most notably with Cattarrhines having the lowest B1 value of the 3, and visually also not having a very prominent slope
+
+
+# first I'm making separate data sets for each of the taxonomic groups using filter()
+```{r}
+
+catarrhines_data <- d_filtered %>% filter(Taxonomic_group == "Catarrhini")
+platyrrhines_data <- d_filtered %>% filter(Taxonomic_group == "Platyrrhini")
+strepsirhines_data <- d_filtered %>% filter(Taxonomic_group == "Strepsirhini")
+
+```
+
+
+```{r}
+# 1
+# 1st plot- catarrhine ECV/Group_size plotting
+plot(data = catarrhines_data, ECV ~ Group_size)
+
+# 2
+# 2nd plot- platyrrhine ECV/Group_size plotting
+plot(data = platyrrhines_data, ECV ~ Group_size)
+
+# 3
+# 3rd plot-  strepsirhine ECV/Group_size plotting
+plot(data = strepsirhines_data, ECV ~ Group_size)
+```
+now I'm finding the beta 1 (B1) and beta 0 (B0) values for each taxonomic group using lm()
+```{r}
+# B0 and B1 for catarrhines
+(m_cat <- lm(ECV ~ Group_size, data = catarrhines_data))
+
+# B0 and B1 for platyrrhines
+(m_plat <- lm(ECV ~ Group_size, data = platyrrhines_data))
+
+# B0 and B1 for strepsirhines
+(m_strep <- lm(ECV ~ Group_size, data = strepsirhines_data))
+
+```
+________________________________
+STEP 6:
+
+
+For your first regression of ECV on social group size, calculate...
+- standard error for the slope coefficient
+- the 95% CI
+- the p value associated with this coefficient by hand. 
+
+Also extract this same information from the results of running the lm() function.
+
+
+
+1st - without lm()
+
+finding se- as shown in Module 19
+  - SE of beta_1 is the sqrt(MSE/SSX)
+  
+  
+finding MSE (mean squared error):
+  MSE = SSE/df_error
+
+  - find SSE (sum of squared errors) = sum((y - predicted y)**2)
+  - df_error (degrees freedom error) = n - p - 1
+      n: number of observances
+      p: number of predictor variables (1)
+      - in this case 151 (from d_filtered), so df_error = 149
+
+calculating predicted y by hand:
+https://www.colorado.edu/amath/sites/default/files/attached-files/ch12_0.pdf
+
+y_predicted = beta_0 + (beta_1 * x)
+    - should use x values (Group_size from d_filtered)
+    
+    
+SSX: sum of squares of x--> tells us how much variation in x(Group_size) there is
+
+      
+  
+
+```{r}
+# using the beta_0 and beta_1 I already determined
+
+# calculate y_predicted
+y_pred = beta_0 + (beta_1 * d_filtered$Group_size)
+y = d_filtered$ECV
+
+# now find SSE
+SSE = sum((y-y_pred)**2)
+
+# I already determined df_error = 149
+df_error = 149
+
+MSE = SSE/df_error
+
+# calculate SSX
+SSX = sum((d_filtered$Group_size - mean(d_filtered$Group_size))**2)
+
+# now after calculating MSE and SSX, I can find the SE of beta_1
+SEbeta1 <- sqrt(MSE/SSX)
+SEbeta1
+```
+
+
+finding the p-value:
+
+https://study.com/skill/learn/calculating-an-appropriate-test-statistic-and-p-value-for-the-slope-of-a-regression-model-explanation.html
+
+t_stat = beta_1 /SEbeta1
+
+df_error = 151 - 1 - 1 = 149
+
+```{r}
+t_stat = beta_1 /SEbeta1
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
