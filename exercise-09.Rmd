@@ -299,25 +299,64 @@ t_stat = beta_1 /SEbeta1
 
 df_error = 151 - 1 - 1 = 149
 
+
+P-VALUE
 ```{r}
 t_stat = beta_1 /SEbeta1
 
+# from Module 19
+# p value is 2 times the probability determines by t statistic coefficients
+p_val <- 2 * pt(-abs(t_stat), df = df_error)
+```
 
+95% Confidence Interval:
+    - setting the alpha value-->
+      alpha = 1 - Confidence Level
+      alpha = 1 - 0.95
+      alpha = 0.05
+    
+```{r}
+# method shown in Module 14
+alpha <- 0.05 
+confidence_level <- 1 - alpha
+p_lower <- alpha/2
+p_upper <- 1 - (alpha/2)
+degrees_of_freedom <- df_error
+critical_value <- qt(p_upper, df = df_error)
+
+# lower bound of CI
+(CI_lower <- beta_1 - critical_value * SEbeta1)
+# upper bound of CI
+(CI_upper <- beta_1 + critical_value * SEbeta1)
 ```
 
 
 
+now we can do this with the lm() function:
+
+Module 18 shows us how to do this-
+```{r}
+mI <- lm(ECV ~ Group_size, data = d_filtered)
+summary(mI)  # show lm() results
+```
+
+under Std. Error- Group_size, we see that the beta_1 (regression coefficient) se value matches up
+  - the Pr(>|t|) column also confirms the p-value for the beta_1
+  
+
+```{r}
+
+alpha <- 0.05
+# extract CIs from the model with using the results of lm()
+(CI <- confint(mI, level = 1 - alpha))
+```
 
 
+- likewise, both the CI bounds I programmatically found by-hand and with the lm() function match with one another
 
 
-
-
-
-
-
-
-
+--------------------------------------------
+Step 7:
 
 
 
