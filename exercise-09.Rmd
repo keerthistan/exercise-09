@@ -358,9 +358,61 @@ alpha <- 0.05
 --------------------------------------------
 Step 7:
 
+Use a permutation approach:
+
+  - generate a null sampling distribution for the slope coefficient
+  - with 1000 permutations
+  
+You can use either the percentile method (i.e., using quantiles from the actual permutation-based null sampling distribution) or a theory-based method (i.e., using the standard deviation of the permutation-based null sampling distribution as the estimate of the standard error, along with a normal or t distribution), or both, to calculate this p value.
+
+QUESTIONS:
+  - What is it that you need to permute? 
+  - What is the p value associated with your original slope coefficient? 
 
 
+ANSWER:
+  - for this, I'm permuting the dependent variable(in this case, ECV), while keeping my independent variable (Group_size) the same
+  - p = 0 approximately, although a truly 0 p-value is unlikely
+  
 
+get_p_value() function:
+  https://www.rdocumentation.org/packages/infer/versions/0.5.3/topics/get_p_value
+
+get_ci() function: returns 95% CI bounds
+  https://www.rdocumentation.org/packages/causaldrf/versions/0.4.2/topics/get_ci
+
+
+using instructions from Module 18
+```{r}
+library(infer)
+library(tidyverse)
+
+permuted.slope <- d_filtered %>%
+  # specify the model, Group size as a function of ECV
+  specify(ECV ~ Group_size) %>%
+  # use a null hypothesis of independence
+  hypothesize(null = "independence") %>%
+  # generate 1000 permutations as instructed
+  generate(reps = 1000, type = "permute") %>%
+  # calculate the slope statistic
+  calculate(stat = "slope")
+
+
+# using get_ci from {infer} to get the confidence intervals
+get_ci(permuted.slope, level = 1 - alpha, type = "percentile")
+
+# plot the null distribution
+hist(permuted.slope$stat, main = "Histogram of Permuted\nSlope Values", xlab = "Slope Coefficient")
+
+# I also need the original slope, to find the p-value
+original.slope <- coef(lm(ECV ~ Group_size, data = d_filtered))["Group_size"]
+
+
+# calculate the p value with get_p_value()
+(p.value <- permuted.slope %>%
+  get_p_value(obs_stat = original.slope, direction="two_sided"))
+
+```
 
 
 
