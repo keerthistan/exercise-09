@@ -356,7 +356,7 @@ alpha <- 0.05
 
 
 --------------------------------------------
-Step 7:
+STEP 7:
 
 Use a permutation approach:
 
@@ -408,20 +408,78 @@ hist(permuted.slope$stat, main = "Histogram of Permuted\nSlope Values", xlab = "
 original.slope <- coef(lm(ECV ~ Group_size, data = d_filtered))["Group_size"]
 
 
-# calculate the p value with get_p_value()
+# calculate the p value with get_p_value()-- Module 16
 (p.value <- permuted.slope %>%
   get_p_value(obs_stat = original.slope, direction="two_sided"))
 
 ```
 
 
+-----------------------------------------------------
+STEP 8:
+
+Part 1: Use bootstrapping method
+Part 2: Generate a 95% CI for your estimate of the slope coefficient
+      - use BOTH percentile method AND theory-based method (i.e., using on the standard deviation of the bootstrapped sampling distribution as an estimate of the standard error). 
+ 
+QUESTION:   
+  - Do these CIs suggest that your slope coefficient is different from zero?
+  
+ANSWER:
+  - Yes, because both the bounds are above(excluding) zero
 
 
+Bootstrapping:
+```{r}
+boot.slope <- d_filtered %>%
+  # specify model
+  specify(ECV ~ Group_size) %>%
+  # generate bootstrap replicates
+  generate(reps = 1000, type = "bootstrap") %>%
+  # calculate the slope statistic
+  calculate(stat = "slope")
 
 
+# boot slope summary
+boot.slope.summary <- boot.slope %>%
+  summarize(
+    estimate = mean(stat),
+    # standard error of stat (slope)
+    std.error = sd(stat),
+    # calculate the CI based on the SE and t distribution
+    lower = estimate - std.error * critical_value,
+    upper = estimate + std.error * critical_value,
+    # calculate the CI using quantile (percentile)  method
+    boot.lower = quantile(stat, p_lower),
+    boot.upper = quantile(stat, p_upper)
+  )
 
+# show summary of bootstrap sampling distribution
+boot.slope.summary
+```
 
+Confidence Intervals:
 
+1. using percentil method
+```{r}
+(CI.percentile <- get_ci(boot.slope, level = 1 - alpha, type = "percentile"))
+```
+2. using theory method
+```{r}
+(CI.theory <- get_ci(boot.slope, level = 1 - alpha, type = "se", point_estimate = pull(boot.slope.summary,
+    estimate)))
+```
+  
+Depending on the technique I use (percentile vs theory), my 95% CI bounds are slightly different
+  
+Plotting
+```{r}
+# bootstrapped histogram with lines marking the CI bounds
+hist(boot.slope$stat, main = "Histogram of Bootstrapped\nSlope Values", xlab = "Slope Coefficient")
+abline(v = CI.percentile)
+```
+  
+  
 
 
 
